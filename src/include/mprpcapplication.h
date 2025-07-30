@@ -1,5 +1,7 @@
 #pragma once
 #include "mprpcconfig.h"
+#include "mprpcchannel.h"
+#include "mprpccontroller.h"
 /*
  * mprpc框架的基础类
  * 负责rpc框架的初始化
@@ -11,7 +13,7 @@ class MprpcApplication
 public:
     static void Init(int argc, char **argv);
     static MprpcApplication &getInstance();
-    static MprpcConfig & getConfig();
+    static MprpcConfig &getConfig();
 
 private:
     static MprpcConfig m_config;

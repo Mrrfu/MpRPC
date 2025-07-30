@@ -1,1 +1,0 @@
-/usr/bin/c++ -g CMakeFiles/proivder.dir/userservice.cc.o CMakeFiles/proivder.dir/__/user.pb.cc.o -o /home/fxh/cpp_code/mprpc/bin/proivder   -L/home/fxh/cpp_code/mprpc/lib  -Wl,-rpath,/home/fxh/cpp_code/mprpc/lib /home/fxh/cpp_code/mprpc/lib/libmprpc.a -lprotobuf -lmuduo_net -lmuduo_base -lpthread

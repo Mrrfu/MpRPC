@@ -1,2 +1,0 @@
-/usr/bin/ar qc /home/fxh/cpp_code/mprpc/lib/libmprpc.a CMakeFiles/mprpc.dir/mprpcapplication.cc.o CMakeFiles/mprpc.dir/mprpcconfig.cc.o CMakeFiles/mprpc.dir/rpcprovider.cc.o
-/usr/bin/ranlib /home/fxh/cpp_code/mprpc/lib/libmprpc.a

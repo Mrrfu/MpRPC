@@ -33,7 +33,8 @@ private:
 
     // 新的socket连接回调
     void onConnection(const muduo::net::TcpConnectionPtr &);
-    void onMessage(const muduo::net::TcpConnectionPtr &,
-                   muduo::net::Buffer *,
-                   muduo::Timestamp);
+    void onMessage(const muduo::net::TcpConnectionPtr &, muduo::net::Buffer *, muduo::Timestamp);
+
+    // Closure的回调操作，用于徐磊话rpc的响应和网络发送
+    void SendRpcResponse(const muduo::net::TcpConnectionPtr &, google::protobuf::Message *);
 };
