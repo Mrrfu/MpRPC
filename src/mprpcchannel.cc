@@ -9,6 +9,7 @@
 #include "rpcheader.pb.h"
 #include "mprpcapplication.h"
 #include "logger.h"
+#include "zookeeperuitl.h"
 
 // 数据格式： [header_size (4字节)][数据头（service_name|method_name|args_size）][参数内容]
 void MprpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
@@ -81,8 +82,33 @@ void MprpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
         return;
     }
 
-    std::string ip = MprpcApplication::getInstance().getConfig().Load("rpcserverip");
-    uint16_t port = std::stoi((MprpcApplication::getInstance().getConfig().Load("rpcserverport")));
+    // std::string ip = MprpcApplication::getInstance().getConfig().Load("rpcserverip");
+    // uint16_t port = std::stoi((MprpcApplication::getInstance().getConfig().Load("rpcserverport")));
+    // 在zk查找节点后获取远程服务ip和端口
+    ZkClient zkCli;
+    zkCli.Start();
+    std::string method_path = "/" + service_name + "/" + method_name;
+    std::string host_data = zkCli.GetData(method_path.c_str());
+    if (host_data == "")
+    {
+        controller->SetFailed(method_path + " is not exist!");
+        LOG_ERR("zookeeper: %s is not exists!", method_path.c_str());
+        return;
+    }
+
+    int idx = host_data.find(":");
+    if (idx == -1)
+    {
+        controller->SetFailed(method_path + " address is invalid!");
+        LOG_ERR("zookeeper: in node %s , address is incalid!", method_path.c_str());
+        return;
+    }
+
+    // 根据读取的数据：127.0.0.1:8088获取ip地址和端口
+    std::string ip = host_data.substr(0, idx);
+    uint16_t port = std::stoi(host_data.substr(idx + 1, host_data.size() - idx));
+    // LOG_INFO("zookeeper: %s.%s found in path: %s:%d", service_name.c_str(), method_name.c_str(), ip.c_str(), port);
+
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
@@ -109,7 +135,7 @@ void MprpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
         return;
     }
 
-    // 接受rpc请求的响应值
+    // 阻塞接受rpc请求的响应值
     char recv_buf[1024] = {0};
     int recv_size = recv(clientfd, recv_buf, 1024, 0);
     if (recv_size == -1)

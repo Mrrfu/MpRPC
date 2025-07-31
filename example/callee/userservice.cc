@@ -8,7 +8,7 @@
 /*
     UserService是一个本地服务，提供了两个进程内的本地方法，Login和GetFriendLists
 */
-class UserService : public fixbug::UserServiceRpc // 使用在rpc服务发布端（rpc服务提供者）
+class UserService : public fixbug::UserServiceRpc // 使用在rpc服务发布端（rpc服务提供者）（继承至UserServiceRpc,UserServiceRpc继承至Service）
 {
 public:
     bool Login(const std::string &name, const std::string &pwd)
@@ -25,7 +25,7 @@ public:
         return true;
     }
     /*
-     * 重写基类UserService的虚函数
+     * 重写基类UserServiceRpc的虚函数
      * 1.caller -->Login(LoginRequest) -->muduo -->callee
      * 2.callee -->Login(LoginRequest) -->重写的Login方法
      */
@@ -59,11 +59,13 @@ public:
         uint32_t id = request->id();
         std::string name = request->name();
         std::string pwd = request->pwd();
+        // 调用本地的注册方法
         bool register_result = Register(id, name, pwd);
         fixbug::ResultCode *code = response->mutable_result();
         code->set_errcode(0);
         code->set_errmsg("");
         response->set_success(register_result);
+        //执行回调，将结果序列化和通过网络发送
         done->Run();
     }
 };

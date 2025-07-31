@@ -2,6 +2,7 @@
 #include "mprpcapplication.h"
 #include "rpcheader.pb.h"
 #include "logger.h"
+#include "zookeeperuitl.h"
 
 // 注册一个protobuf服务对象
 void RpcProvider::NotifyService(google::protobuf::Service *service)
@@ -48,6 +49,29 @@ void RpcProvider::Run()
 
     // 设置muduo库的线程数量
     server.setThreadNum(4);
+
+    // 把当前rpc节点上发布的服务全部注册到zookeeper，使rpc client可以在zookeeper上发现服务
+    ZkClient zkCli;
+    zkCli.Start();
+    // 使service_name为永久性节点 method_name为临时性节点
+    for (auto &sp : m_serviceMap)
+    {
+        std::string service_path = "/" + sp.first;
+        zkCli.Create(service_path.c_str(), nullptr, 0);
+        LOG_INFO("zookeeper: created persistent node: %s", service_path.c_str());
+        for (auto &mp : sp.second.m_methodMap)
+        {
+            // /service_name/method_name
+            std::string method_path = service_path + "/" + mp.first;
+            // 节点存储的数据为当前rpc服务主机的ip和端口
+            char method_path_data[128] = {0};
+            sprintf(method_path_data, "%s:%d", ip.c_str(), port);
+            // ZOO_EPHEMERAL表示是一个临时性节点
+            zkCli.Create(method_path.c_str(), method_path_data, strlen(method_path_data), ZOO_EPHEMERAL);
+            LOG_INFO("zookeeper: created ephemeral node: %s, data: %s", method_path.c_str(), method_path_data);
+        }
+    }
+
     std::cout << "RpcProvider start service at ip : " << ip << " port:" << port << std::endl;
     LOG_INFO("RpcProvider start service at ip: %s port: %d", ip.c_str(), port);
     // 启动网络服务
@@ -151,7 +175,7 @@ void RpcProvider::onMessage(const muduo::net::TcpConnectionPtr &conn,
     google::protobuf::Closure *done = google::protobuf::NewCallback<RpcProvider, const muduo::net::TcpConnectionPtr &, google::protobuf::Message *>(
         this, &RpcProvider::SendRpcResponse, conn, response);
 
-    // 在框架上根据远程rpc请求，调用当前rpc节点上发布的方法
+    // 在框架上根据远程rpc请求，调用当前rpc节点上发布的方法（子类通过继承基类的CallMethod）
     service->CallMethod(method, nullptr, request, response, done);
 }
 
