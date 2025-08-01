@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <atomic>
 #include "lockqueue.h"
 
 // 日志系统
@@ -14,7 +15,9 @@ class Logger
 {
 public:
     static Logger &GetInstance();
+    ~Logger();
     void Log(LogLevel level, const std::string &msg);
+    void Stop();
 
     Logger(const Logger &) = delete;
     Logger(const Logger &&) = delete;

@@ -1,4 +1,5 @@
 #include <string>
+#include <mutex>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>
@@ -10,6 +11,8 @@
 #include "mprpcapplication.h"
 #include "logger.h"
 #include "zookeeperuitl.h"
+
+std::mutex g_data_mutex;
 
 // 数据格式： [header_size (4字节)][数据头（service_name|method_name|args_size）][参数内容]
 void MprpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
@@ -62,14 +65,14 @@ void MprpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
     send_rpc_str += args_str;
 
     // 打印调试信息
-    std::cout << "==========================================" << std::endl;
-    std::cout << "header_size: " << header_size << std::endl;
-    std::cout << "rpc_header_str: " << rpc_header_str << std::endl;
-    std::cout << "service_name: " << service_name << std::endl;
-    std::cout << "method_name: " << method_name << std::endl;
-    std::cout << "args_size: " << args_size << std::endl;
-    std::cout << "args_str: " << args_str << std::endl;
-    std::cout << "==========================================" << std::endl;
+    // std::cout << "==========================================" << std::endl;
+    // std::cout << "header_size: " << header_size << std::endl;
+    // std::cout << "rpc_header_str: " << rpc_header_str << std::endl;
+    // std::cout << "service_name: " << service_name << std::endl;
+    // std::cout << "method_name: " << method_name << std::endl;
+    // std::cout << "args_size: " << args_size << std::endl;
+    // std::cout << "args_str: " << args_str << std::endl;
+    // std::cout << "==========================================" << std::endl;
 
     // 使用TCP编程，完成RPC方法的远程调用
     int clientfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -88,7 +91,9 @@ void MprpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
     ZkClient zkCli;
     zkCli.Start();
     std::string method_path = "/" + service_name + "/" + method_name;
+    // std::unique_lock<std::mutex> lock(g_data_mutex); // 加锁，保证线程安全
     std::string host_data = zkCli.GetData(method_path.c_str());
+    // lock.unlock(); // 解锁
     if (host_data == "")
     {
         controller->SetFailed(method_path + " is not exist!");

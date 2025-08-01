@@ -1,6 +1,32 @@
 #include "zookeeperuitl.h"
 #include "mprpcapplication.h"
 #include <iostream>
+#include <mutex>
+#include <condition_variable>
+#include "logger.h"
+#include <memory>
+
+/*
+ * 这里不能使用全局变量！
+ * 多线程共享同一组全局变量，出现竞态，导致状态混乱，部分线程会误以为连接已建立，实际还未建立
+ * 虚假唤醒：条件变量cv被所有线程共享，notify_all()会唤醒所有等待线程，
+ * 但是只有一个线程的连接真正建立，其他线程被唤醒后检查is_connecyed，
+ * 发现设置为true，就会结束等待，但是它们的连接还未建立。
+ */
+
+// std::mutex cv_mutex;
+// std::condition_variable cv;
+// bool is_connected = false;
+
+// 连接上下文
+struct InitContex
+{
+    std::condition_variable *cv;
+    std::mutex *cv_mutex;
+    bool *is_connected;
+    InitContex(std::condition_variable *cv_, std::mutex *cv_mutex_, bool *is_connected_)
+        : cv(cv_), cv_mutex(cv_mutex_), is_connected(is_connected_) {}
+};
 
 // 生成超时时间 默认10s
 void get_timeout_timespec(struct timespec &ts, int timeout_sec = 10)
@@ -15,14 +41,26 @@ void get_timeout_timespec(struct timespec &ts, int timeout_sec = 10)
 void global_watcher(zhandle_t *zh, int type, int state,
                     const char *path, void *watcherCtx)
 {
+    auto *ctx = static_cast<InitContex *>(watcherCtx);
     if (type == ZOO_SESSION_EVENT)
     {
         if (state == ZOO_CONNECTED_STATE) // 连接成功
         {
-            sem_t *sem = (sem_t *)zoo_get_context(zh);
-            sem_post(sem);
+            // sem_t *sem = (sem_t *)zoo_get_context(zh);
+            // sem_post(sem);
+            // std::lock_guard<std::mutex> lock(cv_mutex);
+            // is_connected = true;
+
+            std::lock_guard<std::mutex> lock(*(ctx->cv_mutex));
+            *(ctx->is_connected) = true;
+            ctx->cv->notify_all();
+        }
+        else
+        {
+            LOG_ERR("zookeeper: connect error! %d", state);
         }
     }
+    // cv.notify_all(); // 通知所有等待线程
 }
 
 ZkClient::ZkClient() : m_zhandle(nullptr) {}
@@ -43,24 +81,41 @@ void ZkClient::Start()
     /*
      *zookeeper_init是异步的，当前返回不能说明初始化成功
      */
-    m_zhandle = zookeeper_init(connstr.c_str(), global_watcher, 30000, nullptr, nullptr, 0);
+    std::condition_variable cv;
+    std::mutex cv_mutex;
+    bool is_connected = false;
+
+    // InitContex ctx{&cv, &cv_mutex, &is_connected};
+    InitContex ctx{&cv, &cv_mutex, &is_connected};
+    m_zhandle = zookeeper_init(connstr.c_str(), global_watcher, 30000, nullptr, &ctx, 0);
     if (m_zhandle == nullptr)
     {
         std::cout << "zookeeper_init error!" << std::endl;
         exit(EXIT_FAILURE);
     }
-    sem_t sem;
-    sem_init(&sem, 0, 0);
-    zoo_set_context(m_zhandle, &sem);
-    struct timespec ts;
-    get_timeout_timespec(ts);
-    if (sem_timedwait(&sem, &ts) != 0)
+    // 下面是使用信号量，但是高并发的情况下有概率出现连接失败
+    // sem_t sem;
+    // sem_init(&sem, 0, 0);
+    // zoo_set_context(m_zhandle, &sem);
+    // struct timespec ts;
+    // get_timeout_timespec(ts);
+    // if (sem_timedwait(&sem, &ts) != 0)
+    // {
+    //     std::cerr << "zookeeper connect timeout" << std::endl;
+    //     sem_destroy(&sem);
+    //     exit(EXIT_FAILURE);
+    // }
+    // sem_destroy(&sem);
+
+    // 改为C++11的条件变量
+    std::unique_lock<std::mutex> lock(cv_mutex);
+    if (!cv.wait_for(lock, std::chrono::seconds(10), [&]
+                     { return is_connected; }))
     {
-        std::cerr << "zookeeper connect timeout" << std::endl;
-        sem_destroy(&sem);
+        std::cerr << "zookeeper connect timeout (cv.wait_for)" << std::endl;
         exit(EXIT_FAILURE);
     }
-    sem_destroy(&sem);
+    LOG_INFO("zookeeper_init success!");
     std::cout << "zookeeper_init success!" << std::endl;
 }
 
@@ -166,6 +221,7 @@ std::string ZkClient::GetData(const char *path)
     if (sem_timedwait(&ctx.sem, &ts) != 0)
     {
         std::cerr << "get znode data timeout: " << path << std::endl;
+        LOG_ERR("get znode data timeout: %s", path);
         sem_destroy(&ctx.sem);
         return "";
     }
@@ -175,6 +231,7 @@ std::string ZkClient::GetData(const char *path)
     if (ctx.rc != ZOK)
     {
         std::cerr << "get znode data error: " << path << ", rc=" << ctx.rc << std::endl;
+        LOG_ERR("get znode data error: %s, rc=%d", path, ctx.rc);
         return "";
     }
 

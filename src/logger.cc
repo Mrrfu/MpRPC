@@ -14,9 +14,10 @@ Logger::Logger()
                              {
         while(true)
         {
-            try{
-                auto log_pair = m_lockQueue.pop();
-                LogLevel level = log_pair.first;
+            try
+            {
+            auto log_pair = m_lockQueue.pop();
+            LogLevel level = log_pair.first;
             std::string msg = log_pair.second;
 
             //获取当前的日期，然后取日志信息，写入相应的日志文件中（追加模式）
@@ -59,6 +60,11 @@ Logger::Logger()
     writeLogTask.detach();
 }
 
+Logger::~Logger()
+{
+    Stop();
+}
+
 void Logger::Log(LogLevel level, const std::string &msg)
 {
     m_lockQueue.push({level, msg});
@@ -84,4 +90,9 @@ const char *Logger::logLevelToString(LogLevel level)
     default:
         return " [UNKNOWN] ";
     }
+}
+
+void Logger::Stop()
+{
+    m_lockQueue.shutdown();
 }
