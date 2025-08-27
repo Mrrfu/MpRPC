@@ -20,7 +20,7 @@ public:
     void Stop();
 
     Logger(const Logger &) = delete;
-    Logger(const Logger &&) = delete;
+    Logger(Logger &&) = delete;
     // Logger &operator=(const Logger &) = delete;
 
 private:
@@ -48,4 +48,4 @@ private:
         char c[1024] = {0};                             \
         snprintf(c, 1024, logmsgformat, ##__VA_ARGS__); \
         logger.Log(ERROR, c);                           \
-    } while (0)
+    } while (0);
