@@ -10,6 +10,8 @@
 #include "rpcheader.pb.h"
 #include "mprpcapplication.h"
 #include "logger.h"
+#include "ZkConnectionPool.h"
+#include <memory>
 
 std::mutex g_data_mutex;
 
@@ -37,10 +39,16 @@ void MprpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
         method_name = method->name();
 
         // 在zk查找节点后获取远程服务ip和端口
-        ZkClient zkCli;
-        zkCli.Start();
+
+        // 不使用zookeeper连接池
+        // ZkClient *zkCli = new ZkClient();
+        // zkCli->Start();
+        // std::shared_ptr<ZkClient> cli(zkCli);
+        auto cli = ZkConnectionPool::getInstance()->getConnection(); // 使用zookeeper连接池
+
         int idx = 0;
-        std::string host_data = queryServiceHost(&zkCli, service_name, method_name, idx);
+        std::string host_data = queryServiceHost(cli, service_name, method_name, idx);
+
         if (host_data == " ")
         {
             LOG_ERR("Method %s not found under service %s!", service_name, method_name);
@@ -196,7 +204,7 @@ bool MprpcChannel::newConnect(const char *ip, uint16_t port, std::string *errMsg
     return true;
 }
 
-std::string MprpcChannel::queryServiceHost(ZkClient *zkclient, const std::string &service_name, const std::string &methdo_name, int &idx)
+std::string MprpcChannel::queryServiceHost(std::shared_ptr<ZkClient> &zkclient, const std::string &service_name, const std::string &methdo_name, int &idx)
 {
     std::string method_path = "/" + service_name + "/" + method_name;
     // std::unique_lock<std::mutex> lock(g_data_mutex); // 加锁，保证线程安全

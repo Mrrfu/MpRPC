@@ -16,7 +16,7 @@
  * 6. 客户端接收响应，反序列化结果并写入 response 对象，用户获取最终调用结果。
  */
 
-void send_request(int thread_id, std::atomic<int> &success_count, std::atomic<int> &fail_count, int request_per_thread)
+void send_request(int thread_id, std::atomic<int> &success_count, std::atomic<int> &fail_count)
 {
     fixbug::UserServiceRpc_Stub stub(new MprpcChannel());
     fixbug::LoginRequest request;
@@ -26,29 +26,29 @@ void send_request(int thread_id, std::atomic<int> &success_count, std::atomic<in
     fixbug::LoginResponse response;
     MprpcController controller;
 
-    for (int i = 0; i < request_per_thread; ++i)
-    {
-        stub.Login(&controller, &request, &response, nullptr);
+    // for (int i = 0; i < request_per_thread; ++i)
+    // {
+    stub.Login(&controller, &request, &response, nullptr);
 
-        if (controller.Failed())
+    if (controller.Failed())
+    {
+        std::cout << controller.ErrorText() << std::endl;
+        fail_count++;
+    }
+    else
+    {
+        if (response.result().errcode() == 0)
         {
-            std::cout << controller.ErrorText() << std::endl;
-            fail_count++;
+            std::cout << "rpc login success: " << response.success() << std::endl;
+            success_count++;
         }
         else
         {
-            if (response.result().errcode() == 0)
-            {
-                std::cout << "rpc login success: " << response.success() << std::endl;
-                success_count++;
-            }
-            else
-            {
-                std::cout << "rpc login error: " << response.result().errmsg() << std::endl;
-                fail_count++;
-            }
+            std::cout << "rpc login error: " << response.result().errmsg() << std::endl;
+            fail_count++;
         }
     }
+    // }
 }
 
 int main(int argc, char **argv)
@@ -118,7 +118,10 @@ int main(int argc, char **argv)
     for (int i = 0; i < thread_count; ++i)
     {
         threads.emplace_back([argc, argv, i, &success_count, &fail_count, request_per_thread]()
-                             { send_request(i, success_count, fail_count, request_per_thread); });
+                             { for(int j = 0;j<request_per_thread;++j)
+                            {
+                                send_request(i, success_count, fail_count);
+                            } });
         // for(int j=0;j<request_per_thread;++j)
         // {
 

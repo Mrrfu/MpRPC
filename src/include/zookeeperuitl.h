@@ -16,6 +16,7 @@ public:
     void Create(const char *path, const char *data, int datalen, int state = 0);
     // 根据参数指定的znode节点路径获取znode节点的值
     std::string GetData(const char *path);
+    void Shutdown();
 
 private:
     zhandle_t *m_zhandle; // zookeeper客户端句柄

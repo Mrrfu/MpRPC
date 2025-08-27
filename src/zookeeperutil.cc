@@ -78,6 +78,7 @@ void ZkClient::Start()
     std::string host = MprpcApplication::getInstance().getConfig().Load("zookeeperip");
     std::string port = MprpcApplication::getInstance().getConfig().Load("zookeeperport");
     std::string connstr = host + ":" + port;
+    std::cout << connstr << std::endl;
     /*
      *zookeeper_init是异步的，当前返回不能说明初始化成功
      */
@@ -236,4 +237,13 @@ std::string ZkClient::GetData(const char *path)
     }
 
     return std::string(buf);
+}
+
+void ZkClient::Shutdown()
+{
+    if (m_zhandle != nullptr)
+    {
+        zookeeper_close(m_zhandle);
+        m_zhandle = nullptr;
+    }
 }

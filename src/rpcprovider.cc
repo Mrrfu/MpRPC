@@ -176,6 +176,7 @@ void RpcProvider::onMessage(const muduo::net::TcpConnectionPtr &conn,
         this, &RpcProvider::SendRpcResponse, conn, response);
 
     // 在框架上根据远程rpc请求，调用当前rpc节点上发布的方法（子类通过继承基类的CallMethod）
+    // service是在服务发布是传入的参数，即即服务发布方继承重写的类，NotifyService(google::protobuf::Service *service)
     service->CallMethod(method, nullptr, request, response, done);
 }
 
