@@ -76,7 +76,7 @@ void RpcProvider::Run()
     LOG_INFO("RpcProvider start service at ip: %s port: %d", ip.c_str(), port);
     // 启动网络服务
     server.start();
-    m_eventLoop.loop();
+    m_eventLoop.loop(); // 进入事件循环，不断处理网络事件
 }
 
 // 连接回调

@@ -9,6 +9,8 @@ set(SRC_LIST
     logger.cc
     zookeeperutil.cc
     ZkConnectionPool.cc
+    RpcSession.cc
+    RpcProviderBoost.cc
 )
 
 add_library(mprpc ${SRC_LIST})

@@ -2,8 +2,9 @@
 #include <string>
 #include "user.pb.h"
 #include "mprpcapplication.h"
-#include "rpcprovider.h"
+// #include "rpcprovider.h"
 #include "logger.h"
+#include "RpcProviderBoost.h"
 
 /*
     UserService是一个本地服务，提供了两个进程内的本地方法，Login和GetFriendLists
@@ -65,7 +66,7 @@ public:
         code->set_errcode(0);
         code->set_errmsg("");
         response->set_success(register_result);
-        //执行回调，将结果序列化和通过网络发送
+        // 执行回调，将结果序列化和通过网络发送
         done->Run();
     }
 };
@@ -74,7 +75,7 @@ int main(int argc, char **argv)
 {
     MprpcApplication::Init(argc, argv);
     // 把UserService对象发布到rpc节点
-    RpcProvider provider;
+    RpcProviderBoost provider;
     provider.NotifyService(new UserService());
 
     // 启动一个rpc服务发布节点,Run以后，进程进入阻塞状态，等待远程调用
