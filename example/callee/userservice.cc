@@ -2,7 +2,7 @@
 #include <string>
 #include "user.pb.h"
 #include "mprpcapplication.h"
-// #include "rpcprovider.h"
+#include "rpcprovider.h"
 #include "logger.h"
 #include "RpcProviderBoost.h"
 
@@ -76,7 +76,8 @@ int main(int argc, char **argv)
     MprpcApplication::Init(argc, argv);
     // 把UserService对象发布到rpc节点
     RpcProviderBoost provider;
-    provider.NotifyService(new UserService());
+    UserService uservice;
+    provider.NotifyService(&uservice);
 
     // 启动一个rpc服务发布节点,Run以后，进程进入阻塞状态，等待远程调用
     provider.Run();

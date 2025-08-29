@@ -18,7 +18,9 @@
 
 void send_request(int thread_id, std::atomic<int> &success_count, std::atomic<int> &fail_count)
 {
-    fixbug::UserServiceRpc_Stub stub(new MprpcChannel());
+    auto channel = std::make_unique<MprpcChannel>();
+    // fixbug::UserServiceRpc_Stub stub(new MprpcChannel());  //注意，这里会造成内存泄露！因为没有delete!
+    fixbug::UserServiceRpc_Stub stub(channel.get());
     fixbug::LoginRequest request;
     request.set_name("zhang san");
     request.set_pwd("123456");
@@ -28,6 +30,7 @@ void send_request(int thread_id, std::atomic<int> &success_count, std::atomic<in
 
     // for (int i = 0; i < request_per_thread; ++i)
     // {
+    // 同步调用，阻塞等待结果
     stub.Login(&controller, &request, &response, nullptr);
 
     if (controller.Failed())
@@ -57,57 +60,61 @@ int main(int argc, char **argv)
     MprpcApplication::Init(argc, argv);
 
     // 演示调用远程发布的rpc方法login
-    fixbug::UserServiceRpc_Stub stub(new MprpcChannel()); // 这里实际通过MprpcChannel进行调用
+    MprpcChannel channel;
+    fixbug::UserServiceRpc_Stub stub(&channel); // 这里实际通过MprpcChannel进行调用
     fixbug::LoginRequest request;
     request.set_name("zhang san");
     request.set_pwd("123456");
     fixbug::LoginResponse response;
 
     // 发起rpc方法的调用， 同步的rpc方法的调用，Login是通过MprpcChannel.callMethod调用
-    MprpcController controller;
-    stub.Login(&controller, &request, &response, nullptr);
-    // stub.Login(); // 实际上是通过RpcChannel->RpcChannel::callMethod集中做所有Rpc方法调用的参数序列化和网络发送
-    // 一次rpc调用完成，读调用的结果
-    if (controller.Failed())
+    for (int i = 0; i < 10; ++i)
     {
-        std::cout << controller.ErrorText() << std::endl;
-    }
-    else
-    {
-        if (response.result().errcode() == 0)
+        MprpcController controller;
+        stub.Login(&controller, &request, &response, nullptr);
+        // stub.Login(); // 实际上是通过RpcChannel->RpcChannel::callMethod集中做所有Rpc方法调用的参数序列化和网络发送
+        // 一次rpc调用完成，读调用的结果
+        if (controller.Failed())
         {
-            std::cout << "rpc login success: " << response.success() << std::endl;
+            std::cout << controller.ErrorText() << std::endl;
         }
         else
         {
-            std::cout << "rpc login error: " << response.result().errmsg() << std::endl;
+            if (response.result().errcode() == 0)
+            {
+                std::cout << "rpc login success: " << response.success() << std::endl;
+            }
+            else
+            {
+                std::cout << "rpc login error: " << response.result().errmsg() << std::endl;
+            }
         }
     }
 
     // 调用注册方法
-    fixbug::RegisterRequest reg_request;
-    MprpcController reg_controller;
-    reg_request.set_id(1);
-    reg_request.set_name("li si");
-    reg_request.set_pwd("123456");
-    fixbug::RegisterResponse reg_response;
-    stub.Register(&reg_controller, &reg_request, &reg_response, nullptr);
+    // fixbug::RegisterRequest reg_request;
+    // MprpcController reg_controller;
+    // reg_request.set_id(1);
+    // reg_request.set_name("li si");
+    // reg_request.set_pwd("123456");
+    // fixbug::RegisterResponse reg_response;
+    // stub.Register(&reg_controller, &reg_request, &reg_response, nullptr);
 
-    if (reg_controller.Failed())
-    {
-        std::cout << controller.ErrorText() << std::endl;
-    }
-    else
-    {
-        if (reg_response.result().errcode() == 0)
-        {
-            std::cout << "rpc register success: " << reg_response.success() << std::endl;
-        }
-        else
-        {
-            std::cout << "rpc register error: " << reg_response.result().errmsg() << std::endl;
-        }
-    }
+    // if (reg_controller.Failed())
+    // {
+    //     std::cout << controller.ErrorText() << std::endl;
+    // }
+    // else
+    // {
+    //     if (reg_response.result().errcode() == 0)
+    //     {
+    //         std::cout << "rpc register success: " << reg_response.success() << std::endl;
+    //     }
+    //     else
+    //     {
+    //         std::cout << "rpc register error: " << reg_response.result().errmsg() << std::endl;
+    //     }
+    // }
     MprpcLogger logger("MyRPC");
     const int thread_count = 1000;     // 并发线程数
     const int request_per_thread = 10; // 每个线程发送的请求数
@@ -122,10 +129,6 @@ int main(int argc, char **argv)
                             {
                                 send_request(i, success_count, fail_count);
                             } });
-        // for(int j=0;j<request_per_thread;++j)
-        // {
-
-        // } });
     }
     for (auto &t : threads)
     {

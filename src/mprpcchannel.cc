@@ -20,8 +20,12 @@ MprpcChannel::MprpcChannel() : m_clientFd(-1)
 }
 MprpcChannel::~MprpcChannel()
 {
+    // 关闭连接
     if (m_clientFd >= 0)
     {
+        // std::cout << "关闭：" << std::this_thread::get_id() << ":" << m_clientFd << " socket!" << std::endl;
+        // auto tid_hash = std::hash<std::thread::id>{}(std::this_thread::get_id());
+        // LOG_INFO("close cocket: tid=%llu %d", (unsigned long long)tid_hash, m_clientFd);
         close(m_clientFd);
     }
 }
@@ -51,7 +55,7 @@ void MprpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
 
         if (host_data == " ")
         {
-            LOG_ERR("Method %s not found under service %s!", service_name, method_name);
+            LOG_ERR("Method %s not found under service %s!", service_name.c_str(), method_name.c_str());
             char errText[256] = {0};
             sprintf(errText, "Method %s not found under service %s!", method_name.c_str(), service_name.c_str());
             std::string errMsg(errText);
@@ -80,7 +84,7 @@ void MprpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
         }
         else
         {
-            LOG_INFO("connect server success! ip: %s, port: %d", m_ip, m_port);
+            LOG_INFO("connect server success! ip: %s, port: %d", m_ip.c_str(), m_port);
         }
     }
 

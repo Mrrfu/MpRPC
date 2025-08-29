@@ -80,6 +80,8 @@ void RpcSession::do_read_args(uint32_t args_len)
 
                                     // 请求已完整接收，现在派发给RpcProvider处理
                                     m_provider->dispatch_request(m_rpc_header, args_str, self);
+
+                                    do_read_header_len(); // 继续读缓冲区（因为是长连接，可能发送多个消息）
                                 }
                                 else
                                 {
@@ -103,8 +105,9 @@ void RpcSession::send_rpc_response(google::protobuf::Message *response)
                                      if (!ec)
                                      {
                                          // 发送成功，模拟短连接，主动断开
-                                         boost::system::error_code shutdown_ec;
-                                         m_socket.shutdown(tcp::socket::shutdown_both, shutdown_ec);
+                                         //  boost::system::error_code shutdown_ec;
+                                         //  m_socket.shutdown(tcp::socket::shutdown_both, shutdown_ec);
+                                         //  std::cout << "服务端关闭连接！" << std::endl;
                                      }
                                      else
                                      {

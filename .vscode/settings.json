@@ -64,6 +64,13 @@
         "typeindex": "cpp",
         "variant": "cpp",
         "*.inc": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "csignal": "cpp",
+        "any": "cpp",
+        "codecvt": "cpp",
+        "coroutine": "cpp",
+        "source_location": "cpp",
+        "future": "cpp",
+        "iomanip": "cpp"
     }
 }

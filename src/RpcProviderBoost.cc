@@ -106,7 +106,7 @@ void RpcProviderBoost::do_accept()
                 LOG_ERR("RpcProvider: accept error. %s", ec.message().c_str());
             }
 
-            // 无论本次是否成功，都继续监听下一个连接
+            // 无论本次是否成功，都继续监听下一个连接，递归调用
             do_accept();
         });
 }
